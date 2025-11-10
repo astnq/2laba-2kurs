@@ -1,130 +1,131 @@
 #include <iostream>
-#include <vector>
-#include <unordered_map>
 #include <string>
 #include <sstream>
+#include <stdexcept>
+#include <vector>
 
 using namespace std;
 
-class SubarraySumFinder {
+
+class Array {
+private:
+    string *arr;              // Указатель на динамический массив строк
+    size_t volume;            // Вместимость массива (объем)
+    size_t size;              // Текущее количество элементов
+
 public:
-    vector<vector<int>> findSubarraysWithSum(const vector<int>& nums, int target) {
-        vector<vector<int>> result;
-        unordered_map<int, vector<int>> prefixSumMap;
-        prefixSumMap[0] = {-1};
-        
-        int currentSum = 0;
-        
-        for (int i = 0; i < nums.size(); i++) {
-            currentSum += nums[i];
-            
-            int neededSum = currentSum - target;
-            if (prefixSumMap.find(neededSum) != prefixSumMap.end()) {
-                for (int startIndex : prefixSumMap[neededSum]) {
-                    vector<int> subarray;
-                    for (int j = startIndex + 1; j <= i; j++) {
-                        subarray.push_back(nums[j]);
-                    }
-                    result.push_back(subarray);
-                }
-            }
-            
-            prefixSumMap[currentSum].push_back(i);
-        }
-        
-        return result;
+    Array() : volume(10), size(0) {         
+        arr = new string[volume];           
     }
-    
-    void printSubarrays(const vector<int>& nums, int target) {
-        cout << "Массив: [";
-        for (size_t i = 0; i < nums.size(); i++) {
-            cout << nums[i];
-            if (i < nums.size() - 1) cout << ", ";
+
+    ~Array() {                             
+        delete[] arr;                      
+    }
+
+    void ShowArray() const {                // Метод вывода всех элементов массива
+        for (size_t i = 0; i < size; ++i) { // Проходим по всем элементам
+            cout << arr[i] << endl;         
         }
-        cout << "], цель: " << target << endl;
-        
-        vector<vector<int>> subarrays = findSubarraysWithSum(nums, target);
-        
-        if (subarrays.empty()) {
-            cout << "Подмассивы с суммой " << target << " не найдены." << endl;
-        } else {
-            cout << "Найдено " << subarrays.size() << " подмассивов:" << endl;
-            for (size_t i = 0; i < subarrays.size(); i++) {
-                cout << i + 1 << ". [";
-                for (size_t j = 0; j < subarrays[i].size(); j++) {
-                    cout << subarrays[i][j];
-                    if (j < subarrays[i].size() - 1) cout << ", ";
-                }
-                cout << "]" << endl;
-            }
+        cout << endl;                       
+    }
+
+    void addToEnd(string value) {           // Добавление элемента в конец массива
+        if (size >= volume) {               // Проверка: достаточно ли памяти
+            volume *= 2;                    
+            string *newArr = new string[volume]; // Создаем новый массив увеличенного размера
+            for (size_t i = 0; i < size; ++i)    
+                newArr[i] = arr[i];
+            delete[] arr;                   
+            arr = newArr;                  
         }
-        cout << endl;
+        arr[size++] = value;                
+    }
+
+    void add(size_t index, string value) {  // Вставка элемента по индексу
+        if (index >= size) return;          // Проверяем, чтобы индекс был корректным
+
+        string *newArr = new string[size + 1]; // Новый массив на один элемент больше
+        for (size_t i = 0; i < index; ++i)     
+            newArr[i] = arr[i];
+
+        newArr[index] = value;              // Вставляем новый элемент на нужное место
+
+        for (size_t i = index; i < size; ++i)  // Сдвигаем оставшиеся элементы вправо
+            newArr[i + 1] = arr[i];
+
+        delete[] arr;                       
+        arr = newArr;                       
+        size++;                             
+    }
+
+    string getIndex(size_t index) {         // Получение элемента по индексу
+        if (index >= size) throw out_of_range("Index out of range"); // Проверка выхода за границы
+        return arr[index];     
+    }
+
+    void remove(size_t index) {  
+        if (index >= size) return;          // Проверка корректности индекса
+
+        string *newArr = new string[size - 1]; // Новый массив меньшего размера
+        for (size_t i = 0; i < index; ++i)    
+            newArr[i] = arr[i];
+        for (size_t i = index + 1; i < size; ++i) // Копируем элементы после удаляемого
+            newArr[i - 1] = arr[i];
+
+        delete[] arr;                       
+        arr = newArr;                       
+        size--;                             
+    }
+
+    void replace(size_t index, string value) { // Замена элемента по индексу
+        if (index >= size) return;          // Проверяем границы
+        arr[index] = value;                 // Присваиваем новое значение
+    }
+
+    size_t getSize() const {                // Возврат текущего размера массива
+        return size;                        
     }
 };
 
-int main() {
-    SubarraySumFinder finder;
-    int choice;
-    
-    do {
-        cout << "=== ПОИСК ПОДМАССИВОВ ===" << endl;
-        cout << "1. Ввести массив" << endl;
-        cout << "2. Выход" << endl;
-        cout << "Выберите опцию: ";
-        cin >> choice;
-        
-        switch(choice) {
-            case 1: {
-                int n;
-                cout << "Введите количество элементов массива: ";
-                cin >> n;
-                
-                // Очищаем буфер после ввода n
-                cin.ignore(10000, '\n');
-                
-                cout << "Введите " << n << " целых чисел через пробел: ";
-                string input;
-                getline(cin, input);
-                
-                // Разбираем всю строку
-                stringstream ss(input);
-                vector<int> userArray;
-                int num;
-                int count = 0;
-                
-                while (ss >> num) {
-                    userArray.push_back(num);
-                    count++;
-                }
-                
-                // Проверяем количество введенных элементов
-                if (count != n) {
-                    cout << "Ошибка: введено " << count << " элементов вместо " << n << "!" << endl;
-                    break;
-                }
-                
-                cout << endl;
-                finder.printSubarrays(userArray, 5);
-                break;
+
+
+
+string subarrayToString(const vector<int>& arr, int start, int end) {
+    ostringstream oss;                      // Создаем поток для формирования строки
+    oss << "[";                             
+    for (int i = start; i <= end; ++i) {    
+        oss << arr[i];                      // Добавляем число в поток
+        if (i < end) oss << ", ";           
+    }
+    oss << "]";                             
+    return oss.str();                       
+}
+
+// Поиск всех подмассивов с заданной суммой
+void findSubarraysWithSum(const vector<int>& arr, int target, Array& result) {
+    int n = arr.size();                     // Получаем длину исходного массива
+
+    for (int i = 0; i < n; ++i) {           
+        int sum = 0;                        // Переменная для накопления суммы
+        for (int j = i; j < n; ++j) {       // Внутренний цикл: конец подмассива
+            sum += arr[j];                  
+            if (sum == target) {            
+                result.addToEnd(subarrayToString(arr, i, j)); // Добавляем строку-подмассив в Array
             }
-            
-            case 2:
-                cout << "Выход из программы..." << endl;
-                break;
-                
-            default:
-                cout << "Неверный выбор! Попробуйте снова." << endl;
-                cin.clear();
-                cin.ignore(10000, '\n');
         }
-        
-        if (choice != 2) {
-            cout << "Нажмите Enter для продолжения...";
-            cin.ignore();
-            cin.get();
-        }
-        
-    } while (choice != 2);
-    
-    return 0;
+    }
+}
+
+
+int main() {
+    vector<int> numbers = {4, -7, 1, 5, -4, 0, -3, 2, 4, 1}; 
+    int target = 5;                                          
+
+    Array result;                                            
+    findSubarraysWithSum(numbers, target, result);           
+
+    cout << "Подмассивы с суммой " << target << ":" << endl; 
+    result.ShowArray();                                      
+
+    return 0;                                                
 }
