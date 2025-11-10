@@ -1,112 +1,148 @@
 #include <iostream>
-#include <queue>
 #include <vector>
-#include <iomanip>
+#include <string>
+
 using namespace std;
 
-class NodeT {
-public:
-    int data;        // Значение узла
-    NodeT* left;     // Указатель на левое поддерево
-    NodeT* right;    // Указатель на правое поддерево
 
-    NodeT(int value) : data(value), left(nullptr), right(nullptr) {} // Конструктор узла
-};
-
-class FullBinaryTree {
+class OpenAddressingHashTable {
 private:
-    NodeT* root;    // Корень дерева
+    vector<pair<char, int>> table;  // Вектор для хранения пар (символ, позиция в строке)
+    vector<bool> occupied;         // Флаги занятости ячеек таблицы
+    int capacity;                  // Общий размер таблицы
+    int size;                      // Текущее количество элементов в таблице
+
+    // Хеш-функция с линейным пробированием
+    int hash(char key, int attempt) {
+        return (static_cast<int>(key) + attempt) % capacity; // Преобразуем символ в число и применяем пробирование
+    }
 
 public:
-    FullBinaryTree() : root(nullptr) {}    
-    ~FullBinaryTree() { clear(root); }     
+    // Конструктор с параметром по умолчанию
+    OpenAddressingHashTable(int cap = 256) : capacity(cap), size(0) {
+        table.resize(capacity);           // Инициализируем вектор пар заданного размера
+        occupied.resize(capacity, false); // Инициализируем все ячейки как пустые
+    }
 
-    void insert(int value) { root = _insert(root, value); }  // Вставка нового узла
-    void printTree(NodeT* node, int depth);                  
-    void print();                                           
-    void printZigZag();                                     // Обход змейкой
-
-private:
-    NodeT* _insert(NodeT* node, int value);  // Рекурсивная вставка
-    void clear(NodeT* node);                 // Рекурсивное удаление дерева
-};
-
-// Рекурсивная вставка узла
-NodeT* FullBinaryTree::_insert(NodeT* node, int value) {
-    if (!node) return new NodeT(value);           // Если пусто, создаём новый узел
-    if (value < node->data) node->left = _insert(node->left, value);   // Идём в левое поддерево
-    else node->right = _insert(node->right, value);                     // Идём в правое поддерево
-    return node;                                  // Возвращаем текущий узел
-}
-
-// Рекурсивное удаление всех узлов
-void FullBinaryTree::clear(NodeT* node) {
-    if (!node) return;
-    clear(node->left);
-    clear(node->right);
-    delete node;
-}
-
-
-void FullBinaryTree::printTree(NodeT* node, int depth) {
-    if (!node) return;
-    printTree(node->right, depth + 1);                   // Сначала правое поддерево
-    cout << setw(4 * depth) << " " << node->data << endl; // Вывод с отступом по уровню
-    printTree(node->left, depth + 1);                   // Затем левое поддерево
-}
-
-void FullBinaryTree::print() { printTree(root, 0); }    // Вызов печати с корня
-
-// Обход дерева змейкой
-void FullBinaryTree::printZigZag() {
-    if (!root) return;
-
-    queue<NodeT*> q;              // Очередь для BFS
-    q.push(root);
-    bool leftToRight = true;      // Направление текущего уровня
-
-    cout << "чтение змейкой дерева:\n";
-
-    while (!q.empty()) {
-        int levelSize = q.size();             // Количество узлов на текущем уровне
-        vector<int> levelNodes(levelSize);    // Вектор для хранения узлов уровня
-
-        for (int i = 0; i < levelSize; i++) {
-            NodeT* node = q.front();
-            q.pop();
-
-            int index = leftToRight ? i : (levelSize - 1 - i);  // Определяем индекс для вставки
-            levelNodes[index] = node->data;
-
-            if (node->left) q.push(node->left);    // Добавляем детей в очередь
-            if (node->right) q.push(node->right);
+    // Метод для вставки пары (символ, позиция) в таблицу
+    void insert(char key, int value) {
+        // Проверяем, не заполнена ли таблица
+        if (size >= capacity) {
+            return; // Если таблица заполнена, выходим
         }
 
-        for (int val : levelNodes) cout << val << " ";  // Вывод текущего уровня
-        leftToRight = !leftToRight;                     // Меняем направление на следующем уровне
+        // Пробуем найти свободную ячейку
+        for (int attempt = 0; attempt < capacity; attempt++) {
+            int index = hash(key, attempt); // Вычисляем индекс с учетом номера попытки
+            
+            // Если ячейка свободна
+            if (!occupied[index]) {
+                table[index] = {key, value}; // Записываем пару ключ-значение
+                occupied[index] = true;      // Помечаем ячейку как занятую
+                size++;                      // Увеличиваем счетчик элементов
+                return;                      // Выходим из функции
+            }
+            
+            // Если ключ уже существует в таблице
+            if (occupied[index] && table[index].first == key) {
+                table[index].second = value; // Обновляем значение (позицию символа)
+                return;                      // Выходим из функции
+            }
+        }
     }
-    cout << endl;
+
+    // Метод для поиска символа в таблице
+    bool search(char key, int& value) {
+        // Пробуем найти символ в таблице
+        for (int attempt = 0; attempt < capacity; attempt++) {
+            int index = hash(key, attempt); // Вычисляем индекс с учетом номера попытки
+            
+            // Если нашли нужный символ
+            if (occupied[index] && table[index].first == key) {
+                value = table[index].second; // Записываем найденную позицию
+                return true;                 
+            }
+            
+            // Если наткнулись на пустую ячейку
+            if (!occupied[index]) {
+                break; // Прерываем поиск (элемента нет)
+            }
+        }
+        return false;
+    }
+
+    // Метод для удаления символа из таблицы
+    bool remove(char key) {
+        // Пробуем найти символ для удаления
+        for (int attempt = 0; attempt < capacity; attempt++) {
+            int index = hash(key, attempt); // Вычисляем индекс с учетом номера попытки
+            
+            // Если нашли нужный символ
+            if (occupied[index] && table[index].first == key) {
+                occupied[index] = false; // Помечаем ячейку как свободную
+                size--;                  // Уменьшаем счетчик элементов
+                return true;             // Возвращаем true - удаление успешно
+            }
+            
+            // Если наткнулись на пустую ячейку
+            if (!occupied[index]) {
+                break; // Прерываем поиск
+            }
+        }
+        return false; 
+    }
+
+    // Метод для очистки таблицы
+    void clear() {
+        // Проходим по всем ячейкам таблицы
+        for (int i = 0; i < capacity; i++) {
+            occupied[i] = false; // Помечаем все ячейки как пустые
+        }
+        size = 0; // Сбрасываем счетчик элементов
+    }
+};
+
+// Функция для нахождения максимальной длины подстроки с уникальными символами
+int lengthOfLongestSubstring(string s) {
+    int n = s.length(); // Получаем длину входной строки
+    if (n == 0) return 0; // Если строка пустая, возвращаем 0
+    
+    OpenAddressingHashTable charMap(256); // Создаем хеш-таблицу для символов ASCII
+    int maxLength = 0; // Переменная для хранения максимальной длины
+    int left = 0;      // Левая граница текущей подстроки
+    
+    // Проходим по строке правой границей
+    for (int right = 0; right < n; right++) {
+        char currentChar = s[right]; // Текущий символ
+        int lastPosition;            // Переменная для хранения последней позиции символа
+        
+        // Проверяем, встречался ли символ уже в текущей подстроке
+        if (charMap.search(currentChar, lastPosition) && lastPosition >= left) {
+            // Если символ повторяется и находится в текущей подстроке
+            left = lastPosition + 1; // Сдвигаем левую границу за повторяющийся символ
+        }
+        
+        // Обновляем позицию текущего символа в таблице
+        charMap.insert(currentChar, right);
+        
+        // Вычисляем длину текущей подстроки и обновляем максимум
+        maxLength = max(maxLength, right - left + 1);
+    }
+    
+    return maxLength; // Возвращаем найденную максимальную длину
 }
 
 
 int main() {
-    FullBinaryTree tree;
-    int n, value;
-
-    cout << "Сколько узлов будет в дереве? ";
-    cin >> n;
-
-    cout << "Введите " << n << " значений узлов:\n";
-    for (int i = 0; i < n; ++i) {
-        cin >> value;
-        tree.insert(value);      // Вставка узла
-    }
-
-    cout << "\nДерево:\n";
-    tree.print();                
-
-    cout << "\nОбход змейкой:\n";
-    tree.printZigZag();          // Обход змейкой
-
-    return 0;
+    string input; 
+    cout << "Введите строку: "; 
+    getline(cin, input);       
+    
+    
+    int result = lengthOfLongestSubstring(input);
+    
+   
+    cout << "Максимальная длина подстроки с уникальными символами: " << result << endl;
+    
+    return 0; 
 }
